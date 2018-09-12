@@ -17,9 +17,10 @@ package motif.intellij.inspection
 
 import com.intellij.codeInspection.*
 import com.intellij.openapi.project.DumbService
+import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiMethod
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import motif.intellij.Validation
 import motif.intellij.inspection.error.ErrorHandler
 import motif.intellij.psi.containedByScopeClass
 import motif.ir.SourceSetGenerator
@@ -31,16 +32,14 @@ import motif.models.parsing.errors.ParsingError
 class MotifInspectionTool: AbstractBaseJavaLocalInspectionTool() {
 
     private var printedMessages: MutableSet<String> = mutableSetOf()
+    private val validation = lazy { Validation() }
 
     override fun checkMethod(method: PsiMethod, manager: InspectionManager, isOnTheFly: Boolean):
     Array<ProblemDescriptor>? {
         if (DumbService.isDumb(manager.project)) return null
-        if(!method.containingClass!!.containedByScopeClass()) return null
+        if (!method.containingClass!!.containedByScopeClass()) return null
         try {
-            // this needs to be optimized, this code is super bad.
-            val scopes = SourceSetGenerator().createSourceSet(manager.project)
-            val processor: Graph = GraphFactory.create(scopes)
-            val errors = processor.validationErrors
+            val errors = validation.value.getValidationErrors(manager.project)
             if (errors.isNotEmpty()) {
                 errors
                         .map { getValidationResult(it, method).errorMessage }

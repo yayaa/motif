@@ -17,8 +17,8 @@ dependencies {
     compile project(':lib')
     compile project(':models')
 
-    implementation deps.rx.java
-    implementation deps.rx.relay
+    compile deps.rx.java
+    compile deps.rx.relay
 
     compile deps.kotlin.reflection
 
