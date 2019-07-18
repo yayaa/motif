@@ -18,11 +18,16 @@ package motif.ast.intellij
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.PsiElementFactory
 import com.intellij.testFramework.LightProjectDescriptor
+import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 import motif.intellij.testing.InternalJdk
+import motif.Scope
+import motif.ast.IrClass
 import org.assertj.core.api.Assertions.assertThat
 import org.intellij.lang.annotations.Language
 import org.junit.Test
+import java.io.File
+import java.lang.RuntimeException
 
 class IntelliJClassTest : LightCodeInsightFixtureTestCase() {
 
@@ -31,6 +36,12 @@ class IntelliJClassTest : LightCodeInsightFixtureTestCase() {
     override fun setUp() {
         super.setUp()
 
+        val requiredJarClasses = listOf(Scope::class)
+        requiredJarClasses
+                .map { jarClass -> File(jarClass.java.protectionDomain.codeSource.location.path) }
+                .forEach { jarUri ->
+                    PsiTestUtil.addLibrary(testRootDisposable, myFixture.module, jarUri.name, jarUri.parent)
+                }
         psiElementFactory = PsiElementFactory.SERVICE.getInstance(project)
     }
 
@@ -42,6 +53,20 @@ class IntelliJClassTest : LightCodeInsightFixtureTestCase() {
 
     override fun getTestDataPath(): String {
         return "testData"
+    }
+
+    fun test() {
+        val fooClass = createIntelliJClass("""
+            package motif.intellij;
+            
+            interface FooScope {
+                java.lang.String string();
+            }
+        """.trimIndent())
+        val method = fooClass.methods[0]
+        val returnClass: IrClass? = method.returnType.resolveClass()
+        val hasScopeAnnotation = returnClass!!.hasAnnotation(Scope::class)
+        throw RuntimeException(hasScopeAnnotation.toString())
     }
 
     fun testInheritedMethod() {

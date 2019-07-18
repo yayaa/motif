@@ -30,6 +30,10 @@ class IntelliJType(
         private val project: Project,
         val psiType: PsiType) : IrType {
 
+    val superTypes: List<IntelliJType> by lazy {
+        psiType.superTypes.map { IntelliJType(project, it) }
+    }
+
     override val qualifiedName: String by lazy {
         GenericsUtil.getVariableTypeByExpressionType(psiType).getCanonicalText(true)
     }
