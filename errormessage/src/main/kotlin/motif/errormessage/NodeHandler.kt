@@ -44,6 +44,13 @@ object NodeHandler {
                     |  PARAMETER: ${node.parameter.parameter.name}
                 """.trimMargin()
             }
+            is AssistedFactorySource -> {
+                """[ASSISTED FACTORY METHOD PARAMETER]
+                    |  TYPE:      ${node.parameter.type.qualifiedName}
+                    |  METHOD:    ${node.parameter.method.qualifiedName}
+                    |  PARAMETER: ${node.parameter.parameter.name}
+                """.trimMargin()
+            }
             is FactoryMethodSink -> {
                 """[FACTORY METHOD PARAMETER]
                     |  TYPE:      ${node.parameter.type.qualifiedName}

@@ -63,6 +63,7 @@ class ScopeImplFactory private constructor(
                     accessMethodImpls(),
                     childMethodImpls(),
                     scopeProviderMethod(),
+                    assistedFactoryMethods(),
                     factoryProviderMethods(),
                     dependencyProviderMethods(),
                     objectsImpl(),
@@ -165,6 +166,10 @@ class ScopeImplFactory private constructor(
         private fun scopeProviderMethod(): ScopeProviderMethod {
             val name = getProviderMethodName(Type(scope.clazz.type, null))
             return ScopeProviderMethod(name, scope.typeName)
+        }
+
+        private fun assistedFactoryMethods(): List<AssistedFactoryImpl> {
+            return emptyList() // TODO
         }
 
         private fun factoryProviderMethods(): List<FactoryProviderMethod> {

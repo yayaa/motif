@@ -72,6 +72,14 @@ class ChildParameterSource(val parameter: ChildMethod.Parameter) : Source() {
     override val isOverriding = true
 }
 
+class AssistedFactorySource(val parameter: AssistedFactoryMethod.Parameter) : Source() {
+
+    override val scope = parameter.method.scope
+    override val type = parameter.type
+    override val isExposed = parameter.isExposed
+    override val isOverriding = true
+}
+
 class FactoryMethodSink(val parameter: FactoryMethod.Parameter) : Sink() {
 
     override val scope = parameter.factoryMethod.objects.scope

@@ -53,6 +53,7 @@ internal interface ErrorHandler {
                     is DuplicatedChildParameterSource -> DuplicatedChildParameterSourceHandler(error)
                     is DuplicatedDependenciesMethod -> DuplicatedDependenciesMethodHandler(error)
                     is ScopeExtendsScope -> ScopeExtendsScopeMethodHandler(error)
+                    is AssistedFactoryMissingParameter -> AssistedFactoryMissingParameterMethodHandler(error)
                 }
                 is ProcessingError -> when (error) {
                     is ScopeCycleError -> ScopeCycleHandler(error)

@@ -41,7 +41,7 @@ sealed class ScopeMethod {
             }
 
             if (method.hasParameters()) {
-                throw AccessMethodParameters(scope, method)
+                return AssistedFactoryMethod.from(scope, method)
             }
 
             if (method.isVoid()) {
@@ -84,4 +84,41 @@ class ChildMethod(
         val type = Type.fromParameter(parameter)
         val isExposed = parameter.hasAnnotation(Expose::class)
     }
+}
+
+class AssistedFactoryMethod private constructor(
+        override val method: IrMethod,
+        val scope: Scope
+) : ScopeMethod() {
+
+    val qualifiedName: String by lazy { "${scope.qualifiedName}.${method.name}" }
+
+    val returnType = Type.fromReturnType(method)
+
+    val parameters: List<Parameter> = method.parameters.map { Parameter(this, it) }
+
+    val sources: List<AssistedFactorySource> = parameters.map(::AssistedFactorySource)
+
+    companion object {
+        fun from(scope: Scope, method: IrMethod): AssistedFactoryMethod {
+            val objects = Objects.fromScope(scope)
+
+            val parameterTypes = method.parameters.map { it.type }
+            val availableTypes = objects?.factoryMethods?.map { it.returnType.type.type } ?: emptyList()
+
+            if(availableTypes.containsAll(parameterTypes)) {
+                return AssistedFactoryMethod(method, scope)
+            } else {
+                val missingParameters = parameterTypes.minus(availableTypes)
+                throw AssistedFactoryMissingParameter(scope, method, missingParameters)
+            }
+        }
+    }
+
+    class Parameter(val method: AssistedFactoryMethod, val parameter: IrParameter) {
+
+        val type = Type.fromParameter(parameter)
+        val isExposed = parameter.hasAnnotation(Expose::class)
+    }
+
 }

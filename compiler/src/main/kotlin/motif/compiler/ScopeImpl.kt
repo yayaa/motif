@@ -36,6 +36,7 @@ class ScopeImpl(
         val accessMethodImpls: List<AccessMethodImpl>,
         val childMethodImpls: List<ChildMethodImpl>,
         val scopeProviderMethod: ScopeProviderMethod,
+        val assistedFactoryMethods: List<AssistedFactoryImpl>,
         val factoryProviderMethods: List<FactoryProviderMethod>,
         val dependencyProviderMethods: List<DependencyProviderMethod>,
         val objectsImpl: ObjectsImpl?,
@@ -103,6 +104,19 @@ class Constructor(
  */
 class AlternateConstructor(
         val dependenciesClassName: ClassName)
+
+/**
+ * ```
+ * Foo foo(Bar bar, BarInScope barInScope) {
+ *     return new Foo(bar, barInScope);
+ * }
+ * ```
+ */
+class AssistedFactoryImpl(
+        val name: String,
+        val returnTypeName: TypeName,
+        val body: FactoryProviderInstantiation.Constructor
+)
 
 /**
  * ```
