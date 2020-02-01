@@ -19,49 +19,14 @@ import motif.ast.IrClass
 import motif.ast.IrType
 import motif.models.*
 
-/**
- * Full representation of the Scope and dependency graph.
- */
-interface ResolvedGraph {
-
-    val roots: List<Scope>
-
-    val scopes: List<Scope>
-
-    val errors: List<MotifError>
-
-    fun getScope(scopeType: IrType): Scope?
-
-    fun getChildEdges(scope: Scope): Iterable<ScopeEdge>
-
-    fun getParentEdges(scope: Scope): Iterable<ScopeEdge>
-
-    fun getChildUnsatisfied(scopeEdge: ScopeEdge): Iterable<Sink>
-
-    fun getUnsatisfied(scope: Scope): Map<Type, List<Sink>>
-
-    fun getSources(scope: Scope): Iterable<Source>
-
-    fun getSinks(scope: Scope): Iterable<Sink>
-
-    fun getSinks(type: Type): Iterable<Sink>
-
-    fun getSinks(irType: IrType): Iterable<Sink>
-
-    fun getSources(irType: IrType): Iterable<Source>
-
-    fun getProviders(sink: Sink): Iterable<Source>
-
-    fun getConsumers(source: Source): Iterable<Sink>
-
-    fun getRequired(source: Source): Iterable<Sink>
+sealed class ResolvedGraph(val errors: List<MotifError>, val scopes: List<Scope>) {
+    abstract fun getScope(scopeType: IrType): Scope?
 
     companion object {
-
         fun create(initialScopeClasses: List<IrClass>): ResolvedGraph {
             val scopes = Scope.fromClasses(initialScopeClasses)
             val scopeGraph = ScopeGraph.create(scopes)
-            scopeGraph.scopeCycleError?.let { return ErrorGraph(it) }
+            scopeGraph.scopeCycleError?.let { return CyclicGraph(it) }
             return ResolvedGraphFactory(scopeGraph).create()
         }
     }
@@ -120,67 +85,48 @@ private class ResolvedGraphFactory(private val scopeGraph: ScopeGraph) {
     }
 }
 
-private class ErrorGraph(error: MotifError) : ResolvedGraph {
-
-    override val roots = emptyList<Scope>()
-    override val scopes = emptyList<Scope>()
-    override val errors = listOf(error)
-    override fun getScope(scopeType: IrType) = null
-    override fun getChildEdges(scope: Scope) = emptyList<ScopeEdge>()
-    override fun getParentEdges(scope: Scope) = emptyList<ScopeEdge>()
-    override fun getChildUnsatisfied(scopeEdge: ScopeEdge) = emptyList<Sink>()
-    override fun getUnsatisfied(scope: Scope) = emptyMap<Type, List<Sink>>()
-    override fun getSources(scope: Scope) = emptyList<Source>()
-    override fun getSinks(type: Type) = emptyList<Sink>()
-    override fun getSinks(irType: IrType) = emptyList<Sink>()
-    override fun getSources(irType: IrType) = emptyList<Source>()
-    override fun getSinks(scope: Scope) = emptyList<Sink>()
-    override fun getProviders(sink: Sink) = emptyList<Source>()
-    override fun getConsumers(source: Source) = emptyList<Sink>()
-    override fun getRequired(source: Source) = emptyList<Sink>()
+private class CyclicGraph(error: MotifError) : ResolvedGraph(listOf(error), emptyList()) {
+    override fun getScope(scopeType: IrType): Scope? = null
 }
 
 private class ValidResolvedGraph(
         private val scopeGraph: ScopeGraph,
         private val scopeStates: Map<Scope, State>,
         private val childStates: Map<ScopeEdge, State>,
-        private val graphState: State) : ResolvedGraph {
+        private val graphState: State
+) : ResolvedGraph(scopeGraph.parsingErrors + graphState.errors, scopeGraph.scopes) {
 
     private val scopeSinks = mutableMapOf<Scope, Set<Sink>>()
 
-    override val roots = scopeGraph.roots
-
-    override val scopes = scopeGraph.scopes
-
-    override val errors = scopeGraph.parsingErrors + graphState.errors
+    val roots = scopeGraph.roots
 
     override fun getScope(scopeType: IrType) = scopeGraph.getScope(scopeType)
 
-    override fun getChildEdges(scope: Scope) = scopeGraph.getChildEdges(scope)
+    fun getChildEdges(scope: Scope) = scopeGraph.getChildEdges(scope)
 
-    override fun getParentEdges(scope: Scope) = scopeGraph.getParentEdges(scope)
+    fun getParentEdges(scope: Scope) = scopeGraph.getParentEdges(scope)
 
-    override fun getChildUnsatisfied(scopeEdge: ScopeEdge) = childStates.getValue(scopeEdge).unsatisfied
+    fun getChildUnsatisfied(scopeEdge: ScopeEdge) = childStates.getValue(scopeEdge).unsatisfied
 
-    override fun getUnsatisfied(scope: Scope) = scopeStates.getValue(scope).unsatisfied.groupBy { it.type }
+    fun getUnsatisfied(scope: Scope) = scopeStates.getValue(scope).unsatisfied.groupBy { it.type }
 
-    override fun getSources(scope: Scope) = scopeStates.getValue(scope).sourceToSinks.keys.filter { it.scope == scope }
+    fun getSources(scope: Scope) = scopeStates.getValue(scope).sourceToSinks.keys.filter { it.scope == scope }
 
-    override fun getSinks(type: Type) = graphState.sinks[type] ?: emptySet<Sink>()
+    fun getSinks(type: Type) = graphState.sinks[type] ?: emptySet<Sink>()
 
-    override fun getSinks(irType: IrType) = graphState.irTypeToSinks[irType] ?: emptySet<Sink>()
+    fun getSinks(irType: IrType) = graphState.irTypeToSinks[irType] ?: emptySet<Sink>()
 
-    override fun getSources(irType: IrType) = graphState.irTypeToSources[irType] ?: emptySet<Source>()
+    fun getSources(irType: IrType) = graphState.irTypeToSources[irType] ?: emptySet<Source>()
 
-    override fun getSinks(scope: Scope) = scopeSinks.computeIfAbsent(scope) {
+    fun getSinks(scope: Scope) = scopeSinks.computeIfAbsent(scope) {
         scopeStates.getValue(scope).sinks.values.flatMap { sinks ->
             sinks.filter { sink -> sink.scope == scope }
         }.toSet()
     }
 
-    override fun getProviders(sink: Sink) = graphState.sinkToSources.getValue(sink)
+    fun getProviders(sink: Sink) = graphState.sinkToSources.getValue(sink)
 
-    override fun getConsumers(source: Source) = graphState.sourceToSinks.getValue(source)
+    fun getConsumers(source: Source) = graphState.sourceToSinks.getValue(source)
 
-    override fun getRequired(source: Source) = scopeStates.getValue(source.scope).edges[source] ?: emptyList()
+    fun getRequired(source: Source) = scopeStates.getValue(source.scope).edges[source] ?: emptyList()
 }
